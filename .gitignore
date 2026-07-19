@@ -57,3 +57,8 @@ yarn-error.log*
 # ---------- Misc ----------
 *.pem
 .vercel
+
+# ---------- Excluded from Git ----------
+proofid/proofid_presentation.txt
+proofid/lib/ipfs/mock-db.json
+proofid/lib/dummy-data.ts

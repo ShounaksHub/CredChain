@@ -5,13 +5,20 @@ import { motion } from "framer-motion";
 import { ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { QRPlaceholder } from "@/components/shared/qr-placeholder";
-import { student } from "@/lib/dummy-data";
-
 /**
  * The signature element of ProofID: a physical-ID-card-styled credential
  * with a holographic edge that tilts subtly toward the cursor, echoing a
  * campus lanyard badge reimagined as a verifiable digital credential.
  */
+
+/* Static demo data for the landing page credential preview */
+const student = {
+  name: "Alex Johnson",
+  avatarInitials: "AJ",
+  university: "National Forensic Sciences University",
+  graduationYear: "2026",
+  verified: true,
+};
 export function CredentialCard() {
   const ref = useRef<HTMLDivElement>(null);
   const [rotate, setRotate] = useState({ x: 0, y: 0 });
