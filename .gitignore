@@ -1,0 +1,59 @@
+# ============================================
+# ProofID Monorepo .gitignore
+# ============================================
+
+# ---------- Dependencies ----------
+node_modules/
+
+# ---------- Environment / Secrets ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Next.js (proofid frontend) ----------
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# ---------- Hardhat (proofid-contracts) ----------
+artifacts/
+cache/
+typechain/
+typechain-types/
+ignition/deployments/
+coverage/
+coverage.json
+
+# ---------- Package manager ----------
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# ---------- OS files ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------- Editor / IDE ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- Logs ----------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---------- Misc ----------
+*.pem
+.vercel

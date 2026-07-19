@@ -1,0 +1,31 @@
+{
+  "name": "proofid-contracts",
+  "version": "1.0.0",
+  "description": "ProofIDRegistry — on-chain student identity registry for the ProofID project (Polygon Amoy).",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "coverage": "hardhat coverage",
+    "node": "hardhat node",
+    "deploy:amoy": "hardhat run scripts/deploy.ts --network polygonAmoy",
+    "deploy:local": "hardhat run scripts/deploy.ts --network hardhat",
+    "verify:amoy": "hardhat verify --network polygonAmoy",
+    "clean": "hardhat clean"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^0.15.16",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.17",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^26.1.1",
+    "dotenv": "^17.4.2",
+    "hardhat": "^2.28.6",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.5.4"
+  }
+}
