@@ -57,12 +57,16 @@ export async function verifyProfileIntegrity(
 
 export async function uploadProfileToIPFS(
   walletAddress: string,
-  data: any
+  data: any,
+  signature: string,
+  timestamp: number
 ): Promise<{ cid: string; hash: Hex }> {
   const response = await fetch("/api/ipfs/upload", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-signature": signature,
+      "x-timestamp": timestamp.toString(),
     },
     body: JSON.stringify({ walletAddress, profile: data }),
   });

@@ -88,7 +88,7 @@ export default function UnauthorizedPage() {
               <ol className="list-decimal list-inside space-y-1">
                 <li>Copy the address above.</li>
                 <li>Open <code className="bg-white/5 px-1 rounded">.env.local</code> in your project.</li>
-                <li>Set <code className="bg-white/5 px-1 rounded text-red-300">NEXT_PUBLIC_ADMIN_WALLET={walletAddress}</code>.</li>
+                <li>Set <code className="bg-white/5 px-1 rounded text-red-300">ADMIN_WALLET={walletAddress}</code>.</li>
               </ol>
             </div>
           </motion.div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useSignMessage } from "wagmi";
 import {
   Plus,
   X,
@@ -45,6 +46,7 @@ export default function CreateProfilePage() {
     writeError,
     reset,
   } = useCreateProfile();
+  const { signMessageAsync } = useSignMessage();
 
   // ── Form state ──
   const [username, setUsername] = useState("");
@@ -272,7 +274,11 @@ export default function CreateProfilePage() {
     setIsUploading(true);
 
     try {
-      const { cid } = await uploadProfileToIPFS(walletAddress, offChainData);
+      const timestamp = Date.now();
+      const message = `Login to CredChain\nWallet: ${walletAddress.toLowerCase()}\nTimestamp: ${timestamp}`;
+      const signature = await signMessageAsync({ message });
+
+      const { cid } = await uploadProfileToIPFS(walletAddress, offChainData, signature, timestamp);
       const profileHash = await generateProfileHash(offChainData);
 
       setIsUploading(false);

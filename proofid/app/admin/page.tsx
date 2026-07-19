@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSignMessage } from "wagmi";
 import {
   ShieldCheck,
   ShieldOff,
@@ -59,9 +60,7 @@ type Tab = "overview" | "pending" | "verified" | "rejected" | "search";
 
 // ── Admin wallet guard ────────────────────────────────────────────────
 
-const ADMIN_WALLET = (
-  process.env.NEXT_PUBLIC_ADMIN_WALLET ?? ""
-).toLowerCase();
+// Removed hardcoded ADMIN_WALLET
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -451,11 +450,28 @@ export default function AdminPage() {
   const router = useRouter();
   const { isConnected, walletAddress } = useWallet();
 
-  // Access control
-  const isAdmin =
-    !!walletAddress &&
-    !!ADMIN_WALLET &&
-    walletAddress.toLowerCase() === ADMIN_WALLET;
+  const { signMessageAsync } = useSignMessage();
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setIsCheckingAdmin(false);
+      return;
+    }
+    setIsCheckingAdmin(true);
+    fetch(`/api/auth/me?wallet=${walletAddress}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setIsAdmin(data.isAdmin);
+        setIsCheckingAdmin(false);
+      })
+      .catch(() => {
+        setIsAdmin(false);
+        setIsCheckingAdmin(false);
+      });
+  }, [walletAddress]);
 
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
@@ -473,7 +489,7 @@ export default function AdminPage() {
 
   // Auth guard
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || isCheckingAdmin) return;
     if (!isConnected) {
       router.push("/");
       return;
@@ -481,14 +497,27 @@ export default function AdminPage() {
     if (!isAdmin) {
       router.push("/unauthorized");
     }
-  }, [mounted, isConnected, isAdmin, router]);
+  }, [mounted, isConnected, isAdmin, isCheckingAdmin, router]);
 
   // ── Fetch all students from Pinata ──
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/students", { cache: "no-store" });
+      if (!walletAddress) throw new Error("Wallet not connected");
+
+      const timestamp = Date.now();
+      const message = `Login to CredChain\nWallet: ${walletAddress.toLowerCase()}\nTimestamp: ${timestamp}`;
+      const signature = await signMessageAsync({ message });
+
+      const res = await fetch("/api/admin/students", {
+        headers: {
+          "x-wallet-address": walletAddress,
+          "x-signature": signature,
+          "x-timestamp": timestamp.toString(),
+        },
+        cache: "no-store",
+      });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || "Failed to fetch students");
@@ -606,7 +635,7 @@ export default function AdminPage() {
     setRefreshKey((k) => k + 1);
   }, [modalStudent, handleRefreshSingle]);
 
-  if (!mounted || !isAdmin) {
+  if (!mounted || isCheckingAdmin || !isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary-2" />

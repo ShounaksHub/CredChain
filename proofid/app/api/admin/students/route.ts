@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { verifySignature, generateAuthMessage, isTimestampValid } from "@/utils/auth";
+import { rateLimit } from "@/utils/rate-limit";
 
 /**
  * GET /api/admin/students
@@ -7,7 +9,35 @@ import { NextResponse } from "next/server";
  * Each entry contains wallet address, username, and the IPFS profile data.
  * This is a server-side route — PINATA_JWT never reaches the client.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const { success } = rateLimit(`admin-students-${ip}`, 20, 60000);
+  if (!success) return new NextResponse("Too many requests", { status: 429 });
+
+  const walletAddress = request.headers.get("x-wallet-address");
+  const signature = request.headers.get("x-signature");
+  const timestampStr = request.headers.get("x-timestamp");
+
+  if (!walletAddress || !signature || !timestampStr) {
+    return new NextResponse("Unauthorized: Missing auth headers", { status: 401 });
+  }
+
+  const timestamp = parseInt(timestampStr, 10);
+  if (!isTimestampValid(timestamp)) {
+    return new NextResponse("Unauthorized: Request expired", { status: 401 });
+  }
+
+  const adminWallet = process.env.ADMIN_WALLET?.toLowerCase();
+  if (!adminWallet || walletAddress.toLowerCase() !== adminWallet) {
+    return new NextResponse("Forbidden: Not an admin", { status: 403 });
+  }
+
+  const message = generateAuthMessage(walletAddress, timestamp);
+  const isValid = await verifySignature(walletAddress, message, signature);
+
+  if (!isValid) {
+    return new NextResponse("Unauthorized: Invalid signature", { status: 401 });
+  }
   const pinataJwt = process.env.PINATA_JWT;
   if (!pinataJwt) {
     const { readMockDb } = await import("@/lib/ipfs/mock-helper");

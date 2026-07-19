@@ -1,11 +1,40 @@
 import { NextResponse } from "next/server";
+import { verifySignature, generateAuthMessage, isTimestampValid } from "@/utils/auth";
+import { rateLimit } from "@/utils/rate-limit";
 
 export async function POST(request: Request) {
   try {
-    const { walletAddress, profile } = await request.json();
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const { success } = rateLimit(`ipfs-upload-${ip}`, 10, 60000);
+    if (!success) return new NextResponse("Too many requests", { status: 429 });
+
+    const signature = request.headers.get("x-signature");
+    const timestampStr = request.headers.get("x-timestamp");
+
+    if (!signature || !timestampStr) {
+      return new NextResponse("Unauthorized: Missing auth headers", { status: 401 });
+    }
+
+    const timestamp = parseInt(timestampStr, 10);
+    if (!isTimestampValid(timestamp)) {
+      return new NextResponse("Unauthorized: Request expired", { status: 401 });
+    }
+
+    const bodyText = await request.text();
+    if (bodyText.length > 50000) {
+      return new NextResponse("Payload too large", { status: 413 });
+    }
+    const { walletAddress, profile } = JSON.parse(bodyText);
 
     if (!walletAddress || !profile) {
       return new NextResponse("Missing walletAddress or profile", { status: 400 });
+    }
+
+    const message = generateAuthMessage(walletAddress, timestamp);
+    const isValid = await verifySignature(walletAddress, message, signature);
+
+    if (!isValid) {
+      return new NextResponse("Unauthorized: Invalid signature", { status: 401 });
     }
 
     const pinataJwt = process.env.PINATA_JWT;
