@@ -79,14 +79,7 @@ npm test
 npx hardhat ignition deploy ignition/modules/ProofIDRegistry.ts --network polygonAmoy
 ```
 
-## 🛣️ Roadmap
 
-- **Phase 1:** Core UI/UX design and Next.js routing **(Completed)**
-- **Phase 2:** Web3 Wallet Integration and Profile Hash verification logic **(Current Stage)**
-- **Phase 3:** IPFS integration for fully decentralized off-chain profile storage.
-- **Phase 4:** Live smart contract deployments and dynamic interactions from the frontend.
-- **Phase 5:** Admin portal for universities to seamlessly verify student records.
-- **Phase 6:** Gasless transactions (meta-transactions) for frictionless student onboarding.
 
 ---
 <div align="center">
