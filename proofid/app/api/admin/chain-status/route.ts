@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
 import { polygonAmoy } from "viem/chains";
 import { proofIdRegistryAbi, PROOFID_REGISTRY_ADDRESS } from "@/lib/contracts/config";
+import { rateLimit } from "@/utils/rate-limit";
+import { validateZod, walletAddressSchema } from "@/utils/validation";
 
 /**
  * GET /api/admin/chain-status?wallet=0x...
@@ -10,16 +12,35 @@ import { proofIdRegistryAbi, PROOFID_REGISTRY_ADDRESS } from "@/lib/contracts/co
  * Never uses cached values — always fetches fresh from chain via a public RPC.
  */
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const wallet = searchParams.get("wallet");
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const { success, limit, remaining, resetTime } = await rateLimit(`chain-status-${ip}`, "read");
+  const rlHeaders = {
+    "X-RateLimit-Limit": limit.toString(),
+    "X-RateLimit-Remaining": remaining.toString(),
+    "Retry-After": Math.max(0, Math.ceil((resetTime - Date.now()) / 1000)).toString(),
+  };
 
-  if (!wallet || !wallet.startsWith("0x") || wallet.length !== 42) {
-    return new NextResponse("Invalid wallet address", { status: 400 });
+  if (!success) {
+    return new NextResponse("Too many requests", { status: 429, headers: rlHeaders });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const rawWallet = searchParams.get("wallet");
+
+  if (!rawWallet) {
+    return new NextResponse("Missing wallet address", { status: 400, headers: rlHeaders });
+  }
+
+  let wallet: string;
+  try {
+    wallet = validateZod(walletAddressSchema, rawWallet);
+  } catch (err: any) {
+    return new NextResponse(err.message, { status: 400, headers: rlHeaders });
   }
 
   // Bail out early if the contract address is still the placeholder
   if (PROOFID_REGISTRY_ADDRESS === "0xYOUR_DEPLOYED_CONTRACT_ADDRESS_HERE") {
-    return NextResponse.json({ isVerified: null, error: "Contract not deployed" });
+    return NextResponse.json({ isVerified: null, error: "Contract not deployed" }, { headers: rlHeaders });
   }
 
   try {
@@ -51,17 +72,17 @@ export async function GET(request: Request) {
     return NextResponse.json({
       isVerified: profileTuple[8],
       walletAddress: profileTuple[0],
-    });
+    }, { headers: rlHeaders });
   } catch (err: any) {
     const msg: string = err?.message ?? "";
     // ProfileDoesNotExist is a known revert — treat as "no profile"
     if (msg.toLowerCase().includes("profiledoesnotexist")) {
-      return NextResponse.json({ isVerified: null, profileMissing: true });
+      return NextResponse.json({ isVerified: null, profileMissing: true }, { headers: rlHeaders });
     }
     console.error("[chain-status] Error:", err);
     return NextResponse.json(
       { isVerified: null, error: msg.slice(0, 200) },
-      { status: 200 } // return 200 so the client can handle gracefully
+      { status: 200, headers: rlHeaders } // return 200 so the client can handle gracefully
     );
   }
 }

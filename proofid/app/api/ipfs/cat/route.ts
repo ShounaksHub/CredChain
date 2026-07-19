@@ -1,12 +1,33 @@
 import { NextResponse } from "next/server";
+import { rateLimit } from "@/utils/rate-limit";
+import { validateZod, cidSchema } from "@/utils/validation";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const cid = searchParams.get("cid");
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const { success, limit, remaining, resetTime } = await rateLimit(`ipfs-cat-${ip}`, "read");
+    const rlHeaders = {
+      "X-RateLimit-Limit": limit.toString(),
+      "X-RateLimit-Remaining": remaining.toString(),
+      "Retry-After": Math.max(0, Math.ceil((resetTime - Date.now()) / 1000)).toString(),
+    };
 
-    if (!cid) {
-      return new NextResponse("Missing cid parameter", { status: 400 });
+    if (!success) {
+      return new NextResponse("Too many requests", { status: 429, headers: rlHeaders });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const rawCid = searchParams.get("cid");
+
+    if (!rawCid) {
+      return new NextResponse("Missing cid parameter", { status: 400, headers: rlHeaders });
+    }
+
+    let cid: string;
+    try {
+      cid = validateZod(cidSchema, rawCid);
+    } catch (err: any) {
+      return new NextResponse(err.message, { status: 400, headers: rlHeaders });
     }
 
     if (cid.startsWith("QmMockIPFSGatewayHash")) {
@@ -14,9 +35,9 @@ export async function GET(request: Request) {
       const db = readMockDb();
       const match = db.find((x) => x.cid === cid);
       if (match) {
-        return NextResponse.json(match.profile);
+        return NextResponse.json(match.profile, { headers: rlHeaders });
       }
-      return new NextResponse("Mock profile not found", { status: 404 });
+      return new NextResponse("Mock profile not found", { status: 404, headers: rlHeaders });
     }
 
     const gateways = [
@@ -31,14 +52,14 @@ export async function GET(request: Request) {
         const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
         if (res.ok) {
           const data = await res.json();
-          return NextResponse.json(data);
+          return NextResponse.json(data, { headers: rlHeaders });
         }
       } catch (err) {
         lastError = err;
       }
     }
 
-    return new NextResponse(`Failed to fetch from gateways: ${lastError?.toString()}`, { status: 502 });
+    return new NextResponse(`Failed to fetch from gateways: ${lastError?.toString()}`, { status: 502, headers: rlHeaders });
   } catch (error: any) {
     return new NextResponse(error.message || "Internal Server Error", { status: 500 });
   }
