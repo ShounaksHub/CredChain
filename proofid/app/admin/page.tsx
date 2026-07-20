@@ -539,6 +539,31 @@ export default function AdminPage() {
       }
       const { students: raw } = await res.json();
 
+      // HACKATHON FALLBACK: Inject mock profiles from localStorage so the admin can see locally created profiles
+      if (typeof window !== "undefined") {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith("mock_username_")) {
+            try {
+              const mapData = JSON.parse(localStorage.getItem(key) || "{}");
+              if (mapData.walletAddress && mapData.cid) {
+                if (!raw.find((s: any) => s.walletAddress.toLowerCase() === mapData.walletAddress.toLowerCase())) {
+                  raw.push({
+                    cid: mapData.cid,
+                    walletAddress: mapData.walletAddress,
+                    username: key.replace("mock_username_", ""),
+                    pinnedAt: new Date().toISOString(),
+                    isLocalMock: true
+                  });
+                }
+              }
+            } catch (e) {
+              console.warn("Failed to parse local mock profile in admin", e);
+            }
+          }
+        }
+      }
+
       // For each student, fetch off-chain profile + on-chain status in parallel
       const enriched: StudentEntry[] = await Promise.all(
         (raw as StudentEntry[]).map(async (s) => {
@@ -556,6 +581,18 @@ export default function AdminPage() {
             }
           } catch {
             // silently skip — data still shows from metadata
+            if ((s as any).isLocalMock) {
+               try {
+                 const localStr = localStorage.getItem(`mock_profile_${s.walletAddress.toLowerCase()}`);
+                 if (localStr) {
+                   const profile = JSON.parse(localStr);
+                   entry.fullName = profile.fullName ?? profile.full_name ?? "";
+                   entry.university = profile.university ?? "";
+                   entry.department = profile.department ?? "";
+                   entry.graduationYear = profile.graduationYear ?? "";
+                 }
+               } catch(e) {}
+            }
           }
 
           // Fetch on-chain verification status directly from contract
@@ -568,9 +605,11 @@ export default function AdminPage() {
             if (chainRes.ok) {
               const { isVerified } = await chainRes.json();
               entry.isVerified = isVerified;
+            } else {
+              entry.isVerified = (s as any).isLocalMock ? false : null;
             }
           } catch {
-            entry.isVerified = null;
+            entry.isVerified = (s as any).isLocalMock ? false : null;
           }
 
           return entry;
