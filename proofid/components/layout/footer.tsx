@@ -47,7 +47,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border-subtle pt-6 text-xs text-muted sm:flex-row">
-          <p>© 2026 CredChain. Frontend preview — no backend connected.</p>
+          <p>© 2026 CredChain. Made by Shounak and Afiza.</p>
           <p>Built for students, verified on-chain.</p>
         </div>
       </div>
