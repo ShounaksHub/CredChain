@@ -9,8 +9,8 @@ import { WrongNetworkBanner } from "@/components/web3/wrong-network-banner";
 import { useWallet } from "@/hooks/use-wallet";
 
 const links = [
-  { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How it Works" },
+  { href: "/#features", label: "Features" },
+  { href: "/#how-it-works", label: "How it Works" },
 ];
 
 export function Navbar() {
@@ -40,8 +40,9 @@ export function Navbar() {
             </a>
           ))}
           <a
-            href="https://github.com"
-            onClick={(e) => e.preventDefault()}
+            href="https://github.com/ShounaksHub/CredChain"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
           >
             <Github className="h-4 w-4" />

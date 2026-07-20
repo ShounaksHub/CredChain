@@ -12,8 +12,9 @@ export function SocialCard({ social }: { social: SocialLink }) {
   const Icon = icons[social.platform];
   return (
     <a
-      href="#"
-      onClick={(e) => e.preventDefault()}
+      href={social.url.startsWith("http") ? social.url : `https://${social.url}`}
+      target="_blank"
+      rel="noopener noreferrer"
       className="glass glass-hover flex items-center gap-3 rounded-xl p-3.5"
     >
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05] text-foreground">
