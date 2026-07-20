@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useSignMessage } from "wagmi";
@@ -49,6 +49,7 @@ export default function CreateProfilePage() {
   const { signMessageAsync } = useSignMessage();
 
   // ── Form state ──
+  const [mounted, setMounted] = useState(false);
   const [username, setUsername] = useState("");
   const [usernameStatus, setUsernameStatus] = useState<
     "idle" | "checking" | "available" | "taken"
@@ -70,19 +71,28 @@ export default function CreateProfilePage() {
   const [linkedin, setLinkedin] = useState("");
   const [portfolio, setPortfolio] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  // Ref to hold the debounce timer so it is always cleaned up correctly
+  const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Redirect logic ──
+  // ── Mounted guard to prevent SSR hydration mismatches ──
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // ── Redirect logic (only after client hydration) ──
+  useEffect(() => {
+    if (!mounted) return;
     if (!isConnected) {
       router.push("/");
     }
-  }, [isConnected, router]);
+  }, [isConnected, router, mounted]);
 
   useEffect(() => {
+    if (!mounted) return;
     if (exists === true) {
       router.push("/dashboard");
     }
-  }, [exists, router]);
+  }, [exists, router, mounted]);
 
   // ── On success → redirect ──
   useEffect(() => {
@@ -91,9 +101,10 @@ export default function CreateProfilePage() {
         title: "Profile Created Successfully! 🎉",
         description: "Your identity is now anchored on-chain.",
       });
+      reset();
       setTimeout(() => router.push("/dashboard"), 1500);
     }
-  }, [isSuccess, walletAddress, router]);
+  }, [isSuccess, walletAddress, router, reset]);
 
   // ── On error → show toast ──
   useEffect(() => {
@@ -104,11 +115,16 @@ export default function CreateProfilePage() {
     }
   }, [writeError, reset]);
 
-  // ── Username availability check ──
+  // ── Username availability check (debounced via ref to prevent memory leaks) ──
   const checkUsername = useCallback(
     (value: string) => {
       const cleaned = value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
       setUsername(cleaned);
+
+      // Clear any in-flight timer before scheduling a new one
+      if (usernameTimerRef.current !== null) {
+        clearTimeout(usernameTimerRef.current);
+      }
 
       if (cleaned.length < 3) {
         setUsernameStatus("idle");
@@ -116,13 +132,15 @@ export default function CreateProfilePage() {
       }
 
       setUsernameStatus("checking");
-      
-      const timeout = setTimeout(async () => {
+
+      usernameTimerRef.current = setTimeout(async () => {
         try {
           const res = await fetch(`/api/ipfs/resolve-username?username=${cleaned}`);
           if (res.ok) {
             const data = await res.json();
-            const isTaken = data.walletAddress && data.walletAddress.toLowerCase() !== walletAddress?.toLowerCase();
+            const isTaken =
+              data.walletAddress &&
+              data.walletAddress.toLowerCase() !== walletAddress?.toLowerCase();
             setUsernameStatus(isTaken ? "taken" : "available");
           } else {
             setUsernameStatus("available");
@@ -131,11 +149,18 @@ export default function CreateProfilePage() {
           setUsernameStatus("available");
         }
       }, 300);
-
-      return () => clearTimeout(timeout);
     },
     [walletAddress]
   );
+
+  // Clean up the username timer on unmount
+  useEffect(() => {
+    return () => {
+      if (usernameTimerRef.current !== null) {
+        clearTimeout(usernameTimerRef.current);
+      }
+    };
+  }, []);
 
   // ── Skill management ──
   function addSkill() {

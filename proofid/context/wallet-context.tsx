@@ -46,11 +46,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      console.log("[CredChain] Attempting to connect with connector:", metaMaskConnector.id, metaMaskConnector.name);
       await connectAsync({ connector: metaMaskConnector });
       toast({ title: "Wallet connected", description: "MetaMask connected successfully." });
     } catch (error) {
-      console.error("[CredChain] Wallet connection error:", error);
       const { message } = classifyWalletError(error);
       toast({ title: "Connection failed", description: message });
     }

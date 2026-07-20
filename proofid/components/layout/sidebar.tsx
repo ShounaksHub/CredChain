@@ -65,7 +65,7 @@ export function Sidebar({ className }: { className?: string }) {
         <span className="font-display text-[15px] font-semibold tracking-wide">CredChain</span>
       </Link>
 
-      <nav className="mt-8 flex flex-1 flex-col gap-1">
+      <nav aria-label="Main navigation" className="mt-8 flex flex-1 flex-col gap-1">
         {items.map((item) => {
           const active = pathname === item.href.split("#")[0];
           const Icon = item.icon;
@@ -73,6 +73,7 @@ export function Sidebar({ className }: { className?: string }) {
             <Link
               key={item.label}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300",
                 active
@@ -90,7 +91,7 @@ export function Sidebar({ className }: { className?: string }) {
               {!active && (
                 <div className="absolute inset-0 rounded-xl bg-white/[0.04] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
               )}
-              <Icon className="relative z-10 h-4.5 w-4.5" />
+              <Icon className="relative z-10 h-4 w-4" aria-hidden="true" />
               <span className="relative z-10">{item.label}</span>
             </Link>
           );

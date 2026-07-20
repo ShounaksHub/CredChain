@@ -136,7 +136,6 @@ export function classifyContractError(error: unknown): {
     };
   }
 
-  console.error("Raw Contract Error:", error);
   return {
     title: "Transaction failed",
     message: raw || "Something went wrong. Please try again.",

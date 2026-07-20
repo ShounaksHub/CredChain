@@ -132,6 +132,11 @@ function ActionModal({
   const { verifyStudent, removeVerification, isPending, isConfirmed, writeError, reset } =
     useAdminActions();
 
+  // Reset hook state when modal opens (prevents stale error from previous action)
+  useEffect(() => {
+    reset();
+  }, []);
+
   // Close on success after a short delay
   useEffect(() => {
     if (isConfirmed) {
@@ -142,6 +147,13 @@ function ActionModal({
       return () => clearTimeout(t);
     }
   }, [isConfirmed, onSuccess, onClose]);
+
+  // Show toast on error
+  useEffect(() => {
+    if (writeError) {
+      console.warn("[Admin] Action failed:", writeError.message?.slice(0, 80));
+    }
+  }, [writeError]);
 
   const handleAction = () => {
     if (action === "verify") {
@@ -169,6 +181,9 @@ function ActionModal({
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="action-modal-title"
         className="relative w-full max-w-md rounded-2xl border border-border-subtle bg-surface shadow-2xl"
       >
         <div className="p-6">
@@ -568,7 +583,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [walletAddress, signMessageAsync]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -785,8 +800,12 @@ export default function AdminPage() {
               className="mb-6"
             >
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+                <label htmlFor="student-search" className="sr-only">
+                  Search students
+                </label>
                 <input
+                  id="student-search"
                   type="text"
                   placeholder="Search by username, wallet address, or name…"
                   value={searchQuery}
