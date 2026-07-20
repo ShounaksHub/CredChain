@@ -57,7 +57,7 @@ export const profileSchema = z.object({
   skills: z.array(z.string().min(1).max(50).trim()).max(50, "Too many skills").default([]),
   achievements: z.array(achievementSchema).max(20, "Too many achievements").default([]),
   projects: z.array(projectSchema).max(20, "Too many projects").default([]),
-  socials: socialsSchema.optional().default({}),
+  socials: socialsSchema.default({ github: "", linkedin: "", portfolio: "" }),
 }).strict();
 
 /**
