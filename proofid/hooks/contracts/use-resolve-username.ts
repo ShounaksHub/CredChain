@@ -38,6 +38,23 @@ export function useResolveUsername(username: string) {
         }
       })
       .catch(() => {
+        // HACKATHON FALLBACK: Check localStorage in case Vercel Lambda wiped the mock DB
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem(`mock_username_${username.toLowerCase()}`);
+            if (raw) {
+              const data = JSON.parse(raw);
+              if (data.walletAddress) {
+                setWalletAddress(data.walletAddress as `0x${string}`);
+                setIsNotFound(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn("Failed to read from localStorage", e);
+          }
+        }
+        
         setWalletAddress(null);
         setIsNotFound(true);
       })
