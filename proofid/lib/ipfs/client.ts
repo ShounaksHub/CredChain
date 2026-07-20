@@ -76,7 +76,22 @@ export async function uploadProfileToIPFS(
     throw new Error(errText || "Failed to upload profile to IPFS");
   }
 
-  return response.json();
+  const result = await response.json();
+
+  // HACKATHON FALLBACK: Persist to localStorage so data survives Vercel serverless lambda cold starts
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(`mock_profile_${walletAddress.toLowerCase()}`, JSON.stringify(data));
+      if (data.username) {
+        localStorage.setItem(`mock_username_${data.username.toLowerCase()}`, JSON.stringify({ cid: result.cid, walletAddress: walletAddress.toLowerCase() }));
+      }
+      localStorage.setItem(`mock_cid_${result.cid}`, JSON.stringify(data));
+    } catch (e) {
+      console.warn("Failed to save mock to localStorage", e);
+    }
+  }
+
+  return result;
 }
 
 export async function fetchProfileFromIPFS(
@@ -84,6 +99,37 @@ export async function fetchProfileFromIPFS(
 ): Promise<{ profile: any; cid: string; walletAddress?: string }> {
   let cid = "";
   let walletAddress: string | undefined;
+
+  // HACKATHON FALLBACK: Check localStorage first in case Vercel lambdas wiped the mock DB
+  if (typeof window !== "undefined") {
+    try {
+      let localData = null;
+      if (identifier.startsWith("0x") && identifier.length === 42) {
+        localData = localStorage.getItem(`mock_profile_${identifier.toLowerCase()}`);
+        if (localData) {
+          cid = `QmMockLocal${Date.now()}`;
+          walletAddress = identifier.toLowerCase();
+        }
+      } else if (!identifier.match(/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafy[a-z0-9]{55})$/)) {
+        const usernameMap = localStorage.getItem(`mock_username_${identifier.toLowerCase()}`);
+        if (usernameMap) {
+          const mapData = JSON.parse(usernameMap);
+          cid = mapData.cid;
+          walletAddress = mapData.walletAddress;
+          localData = localStorage.getItem(`mock_profile_${walletAddress}`);
+        }
+      } else {
+        localData = localStorage.getItem(`mock_cid_${identifier}`);
+        if (localData) cid = identifier;
+      }
+
+      if (localData) {
+        return { profile: JSON.parse(localData), cid, walletAddress };
+      }
+    } catch (e) {
+      console.warn("Failed to read from localStorage", e);
+    }
+  }
 
   // 1. Check if identifier is a wallet address (starts with 0x)
   if (identifier.startsWith("0x") && identifier.length === 42) {
