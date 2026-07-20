@@ -78,22 +78,23 @@ export function useProfile(walletAddress?: `0x${string}`) {
     error?.message?.toLowerCase().includes("profiledoesnotexist");
 
   // HACKATHON MOCK FOR PRESENTATION
-  // Only inject mock once offChainData has loaded — prevents flashing defaults
   if (!profile || isProfileMissing) {
     if (offChainData) {
       profile = {
         walletAddress: targetAddress || "0x1234567890123456789012345678901234567890",
-        fullName: offChainData.fullName || "Shounak",
-        university: offChainData.university || "Example University",
-        department: offChainData.department || "Computer Science",
-        graduationYear: Number(offChainData.graduationYear || 2029),
+        fullName: offChainData.fullName,
+        university: offChainData.university,
+        department: offChainData.department,
+        graduationYear: Number(offChainData.graduationYear),
         profileHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         createdAt: Date.now() / 1000,
         updatedAt: Date.now() / 1000,
         isVerified: true,
       };
+      isProfileMissing = false;
+    } else {
+      isProfileMissing = true;
     }
-    isProfileMissing = false;
   }
 
   useEffect(() => {
@@ -113,26 +114,7 @@ export function useProfile(walletAddress?: `0x${string}`) {
       })
       .catch(() => {
         if (isMounted) {
-          // No entry in mock DB yet — fall back to default demo data
-          setOffChainData({
-            username: "shounak",
-            fullName: "Shounak",
-            university: "Example University",
-            department: "Computer Science",
-            graduationYear: "2029",
-            bio: "Blockchain developer and Web3 enthusiast building decentralized identity solutions.",
-            skills: ["React", "Next.js", "Solidity", "TypeScript", "Wagmi"],
-            achievements: [
-              { title: "Hackathon Winner", issuer: "Global Web3 Hackathon", date: "2026-06" },
-              { title: "Ethereum Developer Bootcamp", issuer: "Alchemy", date: "2025-12" }
-            ],
-            projects: [
-              { title: "CredChain", description: "Decentralized identity built for students.", tags: ["Web3", "Next.js", "Polygon"] },
-              { title: "DeFi Dashboard", description: "Real-time analytics for DeFi protocols.", tags: ["React", "Ethers.js"] }
-            ],
-            socials: { github: "shounak", linkedin: "shounak", portfolio: "https://shounak.dev" }
-          });
-          setIsHashVerified(true);
+          setOffChainData(null);
           setLoadingIPFS(false);
         }
       });
@@ -152,7 +134,7 @@ export function useProfile(walletAddress?: `0x${string}`) {
     isLoading: loadingContract || loadingIPFS,
     isError: false,
     ipfsError: null,
-    isProfileMissing: false,
+    isProfileMissing,
     isHashVerified: true,
     refetch,
   };
