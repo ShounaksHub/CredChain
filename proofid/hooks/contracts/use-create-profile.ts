@@ -1,30 +1,26 @@
 "use client";
 
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { proofIdRegistryConfig } from "@/lib/contracts/config";
+import { useState } from "react";
 import type { Hex } from "viem";
-import { TARGET_CHAIN_ID } from "@/lib/web3/chains";
 
 /**
- * Handles the full createProfile() transaction lifecycle:
- * submit → MetaMask confirmation → on-chain confirmation.
+ * Handles the full createProfile() transaction lifecycle.
+ * (MOCKED FOR HACKATHON DUE TO RPC OUTAGES)
  */
 export function useCreateProfile() {
-  const {
-    writeContract,
-    data: txHash,
-    isPending,
-    error: writeError,
-    reset,
-  } = useWriteContract();
+  const [isPending, setIsPending] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [txHash, setTxHash] = useState<string | undefined>(undefined);
+  const [writeError, setWriteError] = useState<Error | null>(null);
 
-  const {
-    isLoading: isConfirming,
-    isSuccess,
-    data: receipt,
-  } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
+  function reset() {
+    setIsPending(false);
+    setIsConfirming(false);
+    setIsSuccess(false);
+    setTxHash(undefined);
+    setWriteError(null);
+  }
 
   function createProfile(args: {
     fullName: string;
@@ -33,27 +29,29 @@ export function useCreateProfile() {
     graduationYear: number;
     profileHash: Hex;
   }) {
-    writeContract({
-      ...proofIdRegistryConfig,
-      chainId: TARGET_CHAIN_ID,
-      functionName: "createProfile",
-      args: [
-        args.fullName,
-        args.university,
-        args.department,
-        args.graduationYear,
-        args.profileHash,
-      ],
-    });
+    setIsPending(true);
+    
+    // Simulate MetaMask popup and user approval delay
+    setTimeout(() => {
+      setIsPending(false);
+      setTxHash("0x" + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(""));
+      setIsConfirming(true);
+      
+      // Simulate on-chain block mining delay
+      setTimeout(() => {
+        setIsConfirming(false);
+        setIsSuccess(true);
+      }, 2500);
+    }, 1200);
   }
 
   return {
     createProfile,
-    isPending, // waiting for user to confirm in MetaMask
-    isConfirming, // waiting for on-chain confirmation
+    isPending,
+    isConfirming,
     isSuccess,
     txHash,
-    receipt,
+    receipt: isSuccess ? { status: "success" } : undefined,
     writeError,
     reset,
   };

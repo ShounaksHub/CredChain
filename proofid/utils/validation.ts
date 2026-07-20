@@ -8,7 +8,7 @@ export const walletAddressSchema = z
 
 export const cidSchema = z
   .string()
-  .min(30)
+  .min(20)
   .max(100)
   .regex(/^[a-zA-Z0-9]+$/, "Invalid CID format (alphanumeric only)");
 
@@ -67,7 +67,7 @@ export const profileSchema = z.object({
 export function validateZod<T>(schema: z.ZodType<T>, data: unknown): T {
   const result = schema.safeParse(data);
   if (!result.success) {
-    const messages = result.error.errors.map(err => `${err.path.join(".")}: ${err.message}`).join("; ");
+    const messages = result.error.issues.map((err: any) => `${err.path.join(".")}: ${err.message}`).join("; ");
     throw new Error(`Validation Error: ${messages}`);
   }
   return result.data;

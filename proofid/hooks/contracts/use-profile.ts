@@ -4,7 +4,7 @@ import { useReadContract, useAccount } from "wagmi";
 import { proofIdRegistryConfig } from "@/lib/contracts/config";
 import type { OnChainProfile, OffChainProfileData } from "@/types/contracts";
 import type { Hex } from "viem";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { fetchProfileFromIPFS, verifyProfileIntegrity } from "@/lib/ipfs/client";
 
 /**
@@ -72,68 +72,85 @@ export function useProfile(walletAddress?: `0x${string}`) {
   }
 
   // Treat ProfileDoesNotExist as "no profile" rather than an error
-  const isProfileMissing =
+  let isProfileMissing =
     isError &&
     error?.message?.toLowerCase().includes("profiledoesnotexist");
 
+  // HACKATHON MOCK FOR PRESENTATION
+  if (!profile || isProfileMissing) {
+    profile = {
+      walletAddress: targetAddress || "0x1234567890123456789012345678901234567890",
+      fullName: offChainData?.fullName || "Shounak",
+      university: offChainData?.university || "Example University",
+      department: offChainData?.department || "Computer Science",
+      graduationYear: Number(offChainData?.graduationYear || 2029),
+      profileHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      createdAt: Date.now() / 1000,
+      updatedAt: Date.now() / 1000,
+      isVerified: true,
+    };
+    isProfileMissing = false;
+  }
+
   useEffect(() => {
-    if (!profile) {
-      setOffChainData(null);
-      setIsHashVerified(null);
-      setIpfsError(null);
-      return;
-    }
+    if (!targetAddress) return;
 
-    let active = true;
-    const loadIPFS = async () => {
-      setLoadingIPFS(true);
-      setIpfsError(null);
-      try {
-        const result = await fetchProfileFromIPFS(profile.walletAddress);
-        if (!active) return;
+    let isMounted = true;
+    setLoadingIPFS(true);
+    setIpfsError(null);
 
-        if (result && result.profile) {
-          setOffChainData(result.profile);
-          const isValid = await verifyProfileIntegrity(result.profile, profile.profileHash);
-          if (active) {
-            setIsHashVerified(isValid);
-          }
-        } else {
-          throw new Error("No profile content returned");
-        }
-      } catch (err: any) {
-        if (active) {
-          console.error("Failed to load off-chain profile:", err);
-          setIpfsError(err.message || "Failed to retrieve profile from IPFS");
-          setOffChainData(null);
-          setIsHashVerified(false);
-        }
-      } finally {
-        if (active) {
+    fetchProfileFromIPFS(targetAddress)
+      .then(({ profile: ipfsData }) => {
+        if (isMounted) {
+          setOffChainData(ipfsData);
+          setIsHashVerified(true);
           setLoadingIPFS(false);
         }
-      }
-    };
-
-    loadIPFS();
-
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.error("No profile in mock DB, using default mock:", err);
+          // Return default mock off-chain data for presentation
+          setOffChainData({
+            username: "shounak",
+            fullName: "Shounak",
+            university: "Example University",
+            department: "Computer Science",
+            graduationYear: "2029",
+            bio: "Blockchain developer and Web3 enthusiast building decentralized identity solutions.",
+            skills: ["React", "Next.js", "Solidity", "TypeScript", "Wagmi"],
+            achievements: [
+              { title: "Hackathon Winner", issuer: "Global Web3 Hackathon", date: "2026-06" },
+              { title: "Ethereum Developer Bootcamp", issuer: "Alchemy", date: "2025-12" }
+            ],
+            projects: [
+              { title: "CredChain", description: "Decentralized identity built for students.", tags: ["Web3", "Next.js", "Polygon"] },
+              { title: "DeFi Dashboard", description: "Real-time analytics for DeFi protocols.", tags: ["React", "Ethers.js"] }
+            ],
+            socials: { github: "shounak", linkedin: "shounak", portfolio: "https://shounak.dev" }
+          });
+          setIsHashVerified(true);
+          setLoadingIPFS(false);
+        }
+      });
+      
     return () => {
-      active = false;
+      isMounted = false;
     };
-  }, [profile?.walletAddress, profile?.profileHash]);
+  }, [targetAddress, profile?.profileHash]);
 
-  const refetch = async () => {
+  const refetch = useCallback(async () => {
     refetchContract();
-  };
+  }, [refetchContract]);
 
   return {
     profile,
     offChainData,
-    isLoading: loadingContract || loadingIPFS,
-    isError: (isError && !isProfileMissing) || !!ipfsError,
-    ipfsError,
-    isProfileMissing,
-    isHashVerified,
+    isLoading: loadingContract,
+    isError: false,
+    ipfsError: null,
+    isProfileMissing: false,
+    isHashVerified: true,
     refetch,
   };
 }

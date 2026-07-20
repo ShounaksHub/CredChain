@@ -15,9 +15,9 @@ export async function GET(request: Request) {
   const ip = request.headers.get("x-forwarded-for") || "unknown";
   const { success, limit, remaining, resetTime } = await rateLimit(`chain-status-${ip}`, "read");
   const rlHeaders = {
-    "X-RateLimit-Limit": limit.toString(),
-    "X-RateLimit-Remaining": remaining.toString(),
-    "Retry-After": Math.max(0, Math.ceil((resetTime - Date.now()) / 1000)).toString(),
+    "X-RateLimit-Limit": String(limit ?? 100),
+    "X-RateLimit-Remaining": String(remaining ?? 0),
+    "Retry-After": String(Math.max(0, Math.ceil(((resetTime ?? Date.now()) - Date.now()) / 1000))),
   };
 
   if (!success) {

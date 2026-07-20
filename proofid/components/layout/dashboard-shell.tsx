@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, Fingerprint } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
+import Link from "next/link";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -14,12 +15,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile topbar */}
       <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border-subtle bg-background/80 px-4 backdrop-blur-xl md:hidden">
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white">
             <Fingerprint className="h-4 w-4" />
           </span>
           <span className="font-display text-sm font-semibold">CredChain</span>
-        </div>
+        </Link>
         <button onClick={() => setOpen(true)} aria-label="Open menu" className="text-foreground">
           <Menu className="h-5 w-5" />
         </button>

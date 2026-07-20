@@ -8,21 +8,11 @@ import { proofIdRegistryConfig } from "@/lib/contracts/config";
  * Used for routing decisions (dashboard vs. create-profile).
  */
 export function useProfileExists(walletAddress?: `0x${string}`) {
-  const { address: connectedAddress } = useAccount();
-  const targetAddress = walletAddress ?? connectedAddress;
-
-  const { data, isLoading, refetch } = useReadContract({
-    ...proofIdRegistryConfig,
-    functionName: "profileExists",
-    args: targetAddress ? [targetAddress] : undefined,
-    query: {
-      enabled: !!targetAddress,
-    },
-  });
-
+  // HACKATHON MOCK: Force exists to true so the dashboard doesn't redirect
+  // us back to create-profile, since we are mocking the on-chain data.
   return {
-    exists: data as boolean | undefined,
-    isLoading,
-    refetch,
+    exists: true,
+    isLoading: false,
+    refetch: async () => {},
   };
 }

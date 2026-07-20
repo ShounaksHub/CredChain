@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useChainId, useSwitchChain } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 import { toast } from "@/hooks/use-toast";
 import { targetChain, TARGET_CHAIN_ID, TARGET_NETWORK_NAME } from "@/lib/web3/chains";
 import { classifyWalletError, getNetworkLabel, isSupportedChain } from "@/utils/web3";
@@ -13,7 +13,7 @@ import { classifyWalletError, getNetworkLabel, isSupportedChain } from "@/utils/
  * unknown to the wallet, using the RPC/explorer metadata from `targetChain`.
  */
 export function useNetwork() {
-  const chainId = useChainId();
+  const { chainId } = useAccount();
   const { switchChainAsync, isPending } = useSwitchChain();
   const [isSwitching, setIsSwitching] = useState(false);
 

@@ -37,13 +37,15 @@ import { useProfile } from "@/hooks/contracts/use-profile";
 import { useUpdateProfile } from "@/hooks/contracts/use-update-profile";
 import { generateProfileHash, uploadProfileToIPFS } from "@/lib/ipfs/client";
 import { classifyContractError } from "@/utils/web3";
+import { useSignMessage } from "wagmi";
 import type { ProfileFormData, OffChainProfileData } from "@/types/contracts";
 
 export default function EditProfilePage() {
   const router = useRouter();
   const { isConnected, walletAddress } = useWallet();
   const { isWrongNetwork } = useNetwork();
-  const { profile, offChainData, isLoading, refetch } = useProfile();
+  const { profile, offChainData, isLoading, isProfileMissing, refetch } = useProfile();
+  const { signMessageAsync } = useSignMessage();
   const {
     updateProfile,
     isPending,
@@ -54,10 +56,11 @@ export default function EditProfilePage() {
     reset,
   } = useUpdateProfile();
 
-  // ── Form state ──
+  const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [university, setUniversity] = useState("");
   const [department, setDepartment] = useState("");
+  const [allowRebuild, setAllowRebuild] = useState(false);
   const [graduationYear, setGraduationYear] = useState("");
   const [bio, setBio] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
@@ -83,6 +86,13 @@ export default function EditProfilePage() {
     if (mounted && !isConnected) router.push("/");
   }, [isConnected, router, mounted]);
 
+  // ── Redirect if profile does not exist ──
+  useEffect(() => {
+    if (isProfileMissing && !isLoading) {
+      router.push("/create-profile");
+    }
+  }, [isProfileMissing, isLoading, router]);
+
   // ── Populate form from on-chain + IPFS data ──
   useEffect(() => {
     if (initialized) return;
@@ -95,6 +105,7 @@ export default function EditProfilePage() {
     }
 
     if (offChainData) {
+      setUsername(offChainData.username ?? "");
       setBio(offChainData.bio ?? "");
       setSkills(offChainData.skills ?? []);
       setAchievements(
@@ -133,8 +144,9 @@ export default function EditProfilePage() {
         description: "Your changes are now reflected on-chain.",
       });
       refetch();
+      reset();
     }
-  }, [isSuccess, walletAddress, refetch]);
+  }, [isSuccess, walletAddress, refetch, reset]);
 
   // ── Error handler ──
   useEffect(() => {
@@ -250,8 +262,6 @@ export default function EditProfilePage() {
       return;
     }
 
-    const username = offChainData?.username || "";
-
     const updatedOffChain: OffChainProfileData = {
       username,
       fullName,
@@ -268,7 +278,11 @@ export default function EditProfilePage() {
     setIsUploading(true);
 
     try {
-      const { cid } = await uploadProfileToIPFS(walletAddress, updatedOffChain);
+      const timestamp = Date.now();
+      const message = `Login to CredChain\nWallet: ${walletAddress.toLowerCase()}\nTimestamp: ${timestamp}`;
+      const signature = await signMessageAsync({ message });
+
+      const { cid } = await uploadProfileToIPFS(walletAddress, updatedOffChain, signature, timestamp);
       const newHash = await generateProfileHash(updatedOffChain);
 
       setIsUploading(false);
@@ -296,6 +310,40 @@ export default function EditProfilePage() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  if (isLoading) {
+    return (
+      <DashboardShell>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-2" />
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  if (!profile || (!offChainData && !allowRebuild)) {
+    return (
+      <DashboardShell>
+        <div className="flex min-h-[50vh] flex-col items-center justify-center text-center px-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-4">
+            <Lock className="h-8 w-8" />
+          </div>
+          <h2 className="text-xl font-semibold">Profile Failed to Load</h2>
+          <p className="mt-2 max-w-sm text-sm text-muted">
+            We could not fetch your profile data from IPFS. Saving now would overwrite your existing profile with empty data. Please try again.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            <Button variant="secondary" onClick={() => refetch()}>
+              Retry Loading
+            </Button>
+            <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => setAllowRebuild(true)}>
+              Continue Anyway (Rebuild Profile)
+            </Button>
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell>
@@ -399,10 +447,27 @@ export default function EditProfilePage() {
               <CardHeader>
                 <CardTitle>Basic Information</CardTitle>
                 <CardDescription>
-                  Name and university are immutable on-chain identity anchors.
+                  Your core identity information.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="username" className="flex items-center gap-1.5">
+                    Username
+                    {offChainData?.username && !allowRebuild && <Lock className="h-3 w-3 text-muted" />}
+                  </Label>
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    disabled={!!offChainData?.username && !allowRebuild}
+                    className={offChainData?.username && !allowRebuild ? "opacity-60 bg-muted/50" : ""}
+                    placeholder="Enter your unique username"
+                  />
+                  <p className="text-[11px] text-muted">
+                    {allowRebuild ? "Re-enter your username to rebuild your profile" : "Unique identifier"}
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="name">
                     Name
@@ -419,22 +484,18 @@ export default function EditProfilePage() {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="university"
-                    className="flex items-center gap-1.5"
-                  >
+                  <Label htmlFor="university">
                     University
-                    <Lock className="h-3 w-3 text-muted" />
                   </Label>
                   <Input
                     id="university"
                     value={university}
-                    disabled
-                    className="opacity-60"
-                    title="University is immutable after profile creation"
+                    onChange={(e) => setUniversity(e.target.value)}
+                    disabled={isSubmitting}
+                    placeholder="Enter your university"
                   />
                   <p className="text-[11px] text-muted">
-                    Locked after creation
+                    Update your university
                   </p>
                 </div>
                 <div className="space-y-2">

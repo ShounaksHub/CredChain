@@ -1,27 +1,25 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { QRPlaceholder } from "@/components/shared/qr-placeholder";
+import { useProfile } from "@/hooks/contracts/use-profile";
+
 /**
  * The signature element of ProofID: a physical-ID-card-styled credential
  * with a holographic edge that tilts subtly toward the cursor, echoing a
  * campus lanyard badge reimagined as a verifiable digital credential.
  */
 
-/* Static demo data for the landing page credential preview */
-const student = {
-  name: "Alex Johnson",
-  avatarInitials: "AJ",
-  university: "National Forensic Sciences University",
-  graduationYear: "2026",
-  verified: true,
-};
 export function CredentialCard() {
   const ref = useRef<HTMLDivElement>(null);
   const [rotate, setRotate] = useState({ x: 0, y: 0 });
+  const { profile, isLoading } = useProfile();
+  
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     const el = ref.current;
@@ -35,6 +33,18 @@ export function CredentialCard() {
   function handleMouseLeave() {
     setRotate({ x: 0, y: 0 });
   }
+
+  const name = profile?.fullName || "Your Name";
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const university = profile?.university || "Your University";
+  const graduationYear = profile?.graduationYear || "----";
+  const department = profile?.department || "Department";
+  const verified = profile?.isVerified ?? false;
 
   return (
     <div style={{ perspective: 1200 }}>
@@ -62,27 +72,29 @@ export function CredentialCard() {
 
         <div className="relative mt-6 flex items-center gap-4">
           <Avatar className="h-16 w-16 border border-white/10">
-            <AvatarFallback className="text-lg">{student.avatarInitials}</AvatarFallback>
+            <AvatarFallback className="text-lg">
+              {mounted && isLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted" /> : initials}
+            </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="truncate font-display text-lg font-semibold">{student.name}</p>
-              {student.verified && (
+              <p className="truncate font-display text-lg font-semibold">{name}</p>
+              {verified && (
                 <ShieldCheck className="h-4 w-4 shrink-0 text-verified" />
               )}
             </div>
-            <p className="truncate text-xs text-muted">{student.university}</p>
+            <p className="truncate text-xs text-muted">{university}</p>
           </div>
         </div>
 
         <div className="relative mt-6 grid grid-cols-2 gap-3 border-t border-border-subtle pt-4 font-data text-[11px]">
           <div>
             <p className="text-muted">Department</p>
-            <p className="mt-0.5 truncate text-foreground">Cybersecurity</p>
+            <p className="mt-0.5 truncate text-foreground">{department}</p>
           </div>
           <div>
             <p className="text-muted">Class of</p>
-            <p className="mt-0.5 text-foreground">{student.graduationYear}</p>
+            <p className="mt-0.5 text-foreground">{graduationYear}</p>
           </div>
         </div>
       </motion.div>
